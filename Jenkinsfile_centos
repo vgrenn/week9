@@ -1,0 +1,51 @@
+podTemplate(yaml: '''
+    apiVersion: v1
+    kind: Pod
+    spec:
+      containers:
+      - name: centos
+        image: centos
+        command:
+        - sleep
+        args:
+        - 99d
+    restartPolicy: Never
+ ''') {
+ node(POD_LABEL) {
+ stage('k8s') {
+ git branch:'main', url:'https://github.com/vgrenn/week9.git'
+ container('centos') {
+ stage('start calculator') {
+ sh '''
+ dnf --disablerepo '*' --enablerepo=extras swap centos-linux-repos centos-stream-repos -y
+ dnf distro-sync -y
+ yum -y install bind-utils
+ pwd
+ cd Chapter09/sample3
+ curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+ chmod +x ./kubectl
+ ./kubectl version --client
+ pwd
+ ./kubectl apply -f calculator_div.yaml -n staging
+ ./kubectl apply -f hazelcast.yaml -n staging
+ sleep 60
+ ./kubectl get pods -n staging
+ test $(curl calculator-service.staging.svc.cluster.local:8080/sum?a=6\\&b=2) -eq 8 && echo 'pass' || 'fail'
+ test $(curl calculator-service.staging.svc.cluster.local:8080/div?a=6\\&b=2) -eq 3 && echo 'pass' || 'fail'
+ ./kubectl delete deployments calculator-deployment -n staging
+ ./kubectl delete deployments hazelcast -n staging
+ sleep 60
+ ./kubectl apply -f calculator.yaml -n staging
+ ./kubectl apply -f hazelcast.yaml -n staging
+ sleep 60
+ ./kubectl get pods -n staging
+ test $(curl calculator-service.staging.svc.cluster.local:8080/sum?a=6\\&b=2) -eq 8 && echo 'pass' || 'fail'
+ test $(curl calculator-service.staging.svc.cluster.local:8080/div?a=6\\&b=2) -eq 3 && echo 'pass' || 'fail'
+ ./kubectl delete deployments calculator-deployment -n staging
+ ./kubectl delete deployments hazelcast -n staging
+ '''
+ }
+ }
+ }
+ }
+ }
