@@ -13,7 +13,7 @@ podTemplate(yaml: '''
  ''') {
  node(POD_LABEL) {
  stage('k8s') {
- git branch:'main', url:'https://github.com/umlDevOps/week9.git'
+ git branch:'main', url:'https://github.com/vgrenn/week9.git'
  container('centos') {
  stage('start calculator') {
  sh '''
